@@ -149,7 +149,7 @@ int main(int ac, char *av[])
     Dynamics1Level<fluid_dynamics::Integration1stHalfCorrectionInnerRiemann> fluid_pressure_relaxation_correct(water_body_inner);
     Dynamics1Level<fluid_dynamics::Integration2ndHalfInnerRiemann> fluid_density_relaxation(water_body_inner);
     InteractionWithUpdate<fluid_dynamics::DensitySummationInnerFreeStream> update_density_by_summation(water_body_inner);
-    InteractionWithUpdate<fluid_dynamics::TransportVelocityCorrectionInner<NoLimiter, BulkParticles>> transport_velocity_correction(water_body_inner);
+    InteractionWithUpdate<fluid_dynamics::TransportVelocityCorrectionCorrectedInner<TruncatedLinear, BulkParticles>> transport_velocity_correction(water_body_inner);
     ReduceDynamics<fluid_dynamics::AdvectionViscousTimeStep> fluid_advection_time_step(water_block, U_max);
     ReduceDynamics<fluid_dynamics::AcousticTimeStep> fluid_acoustic_time_step(water_block);
     SimpleDynamics<InitialVelocity> initial_condition(water_block);
@@ -168,6 +168,9 @@ int main(int ac, char *av[])
     RestartIO restart_io(sph_system);
     RegressionTestDynamicTimeWarping<ReducedQuantityRecording<TotalKineticEnergy>> write_water_kinetic_energy(water_block);
     ObservedQuantityRecording<Real> write_recorded_water_pressure("Pressure", fluid_observer_contact);
+    ReducedQuantityRecording<LinearMomentumX> write_linear_momentum_x(water_block);
+    ReducedQuantityRecording<LinearMomentumY> write_linear_momentum_y(water_block);
+    ReducedQuantityRecording<TotalAngularMomentum> write_angular_momentum(water_block);
     //----------------------------------------------------------------------
     //	Prepare the simulation with cell linked list, configuration
     //	and case specified initial condition if necessary.
@@ -221,7 +224,7 @@ int main(int ac, char *av[])
             free_surface_indicator.exec();
             corrected_configuration_fluid.exec();
             update_density_by_summation.exec();
-            transport_velocity_correction.exec();
+            //transport_velocity_correction.exec();
             interval_computing_time_step += TickCount::now() - time_instance;
 
             time_instance = TickCount::now();
@@ -252,6 +255,9 @@ int main(int ac, char *av[])
 
                 write_water_kinetic_energy.writeToFile(number_of_iterations);
                 write_recorded_water_pressure.writeToFile(number_of_iterations);
+                write_linear_momentum_x.writeToFile(number_of_iterations);
+                write_linear_momentum_y.writeToFile(number_of_iterations);
+                write_angular_momentum.writeToFile(number_of_iterations);
             }
             number_of_iterations++;
 

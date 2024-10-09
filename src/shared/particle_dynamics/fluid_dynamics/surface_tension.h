@@ -41,17 +41,37 @@ namespace fluid_dynamics
 class SurfaceTensionStress : public LocalDynamics, public DataDelegateContact
 {
   public:
-    explicit SurfaceTensionStress(BaseContactRelation &contact_relation, StdVec<Real> contact_surface_tension);
+    explicit SurfaceTensionStress(BaseContactRelation &contact_relation, Real surface_tension_coef);
     virtual ~SurfaceTensionStress(){};
     void interaction(size_t index_i, Real dt = 0.0);
 
   protected:
-    Vecd *color_gradient_;
+    Vecd *color_gradient_, *norm_direction_;
     Matd *surface_tension_stress_;
-    StdVec<Real> contact_surface_tension_, contact_fraction_;
+    StdVec<Real> contact_fraction_;
     StdVec<Real *> contact_Vol_;
+    Real *surface_tension_coef_;
+    Matd *B_;
 };
+//=================================================================================================//
+//=================================================================================================//
+//=================================================================================================//
+class SurfaceTensionStressInner : public LocalDynamics, public DataDelegateInner
+{
+  public:
+    explicit SurfaceTensionStressInner(BaseInnerRelation &inner_relation);
+    virtual ~SurfaceTensionStressInner(){};
+    void interaction(size_t index_i, Real dt = 0.0);
 
+  protected:
+    Vecd *color_gradient_, *norm_direction_;
+    Matd *surface_tension_stress_;
+    Real *surface_tension_coef_, *Vol_;
+    Matd *B_;
+};
+//=================================================================================================//
+//=================================================================================================//
+//=================================================================================================//
 template <typename... T>
 class SurfaceStressForce;
 
@@ -68,6 +88,8 @@ class SurfaceStressForce<DataDelegationType>
     Real *rho_, *mass_, *Vol_;
     Vecd *color_gradient_, *surface_tension_force_;
     Matd *surface_tension_stress_;
+    Real *surface_tension_coef_;
+    Vecd *force_by_hourglass_, *force_by_hourglass_contact_;
 };
 
 template <>
@@ -77,6 +99,9 @@ class SurfaceStressForce<Inner<>> : public SurfaceStressForce<DataDelegateInner>
     SurfaceStressForce(BaseInnerRelation &inner_relation);
     virtual ~SurfaceStressForce(){};
     void interaction(size_t index_i, Real dt = 0.0);
+
+  protected:
+    Vecd *color_gradient_;
 };
 
 template <>
@@ -91,7 +116,7 @@ class SurfaceStressForce<Contact<>> : public SurfaceStressForce<DataDelegateCont
     StdVec<Real *> contact_Vol_;
     StdVec<Vecd *> contact_color_gradient_;
     StdVec<Matd *> contact_surface_tension_stress_;
-    StdVec<Real> contact_surface_tension_, contact_fraction_;
+    StdVec<Real> contact_fraction_;
 };
 
 using SurfaceStressForceComplex = ComplexInteraction<SurfaceStressForce<Inner<>, Contact<>>>;

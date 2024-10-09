@@ -17,7 +17,10 @@ SurfaceStressForce<DataDelegationType>::SurfaceStressForce(BaseRelationType &bas
       Vol_(this->particles_->template getVariableDataByName<Real>("VolumetricMeasure")),
       color_gradient_(this->particles_->template getVariableDataByName<Vecd>("ColorGradient")),
       surface_tension_force_(this->particles_->template registerStateVariable<Vecd>("SurfaceTensionForce")),
-      surface_tension_stress_(this->particles_->template getVariableDataByName<Matd>("SurfaceTensionStress")) {}
+      surface_tension_stress_(this->particles_->template getVariableDataByName<Matd>("SurfaceTensionStress")),
+      surface_tension_coef_(particles_->template getSingularVariableByName<Real>("SurfaceTensionCoef")->ValueAddress()),
+      force_by_hourglass_(this->particles_->template registerStateVariable<Vecd>("ForceByHourglass")),
+      force_by_hourglass_contact_(this->particles_->template registerStateVariable<Vecd>("ForceByHourglassContact"))  {}
 //=================================================================================================//
 } // namespace fluid_dynamics
 } // namespace SPH

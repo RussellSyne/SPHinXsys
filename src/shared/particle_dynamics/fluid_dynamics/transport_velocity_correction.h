@@ -84,6 +84,10 @@ template <class LimiterType, class ParticleScope>
 using TransportVelocityCorrectionInner =
     TransportVelocityCorrection<Inner<SingleResolution, LimiterType>, NoKernelCorrection, ParticleScope>;
 
+template <class LimiterType, class ParticleScope>
+using TransportVelocityCorrectionCorrectedInner =
+    TransportVelocityCorrection<Inner<SingleResolution, LimiterType>, LinearGradientCorrection, ParticleScope>;
+
 template <typename... CommonControlTypes>
 class TransportVelocityCorrection<Contact<Boundary>, CommonControlTypes...>
     : public TransportVelocityCorrection<Base, DataDelegateContact, CommonControlTypes...>
@@ -143,6 +147,21 @@ template <class ParticleScope>
 using MultiPhaseTransportVelocityCorrectionComplex =
     BaseMultiPhaseTransportVelocityCorrectionComplex<SingleResolution, NoKernelCorrection, ParticleScope>;
 
+template <class ParticleScope>
+using MultiPhaseTransportVelocityCorrectionCorrectedComplex =
+    BaseMultiPhaseTransportVelocityCorrectionComplex<SingleResolution, LinearGradientCorrection, ParticleScope>;
+
+template <class ResolutionType, typename... CommonControlTypes>
+using BaseMultiPhaseTransportVelocityLimitedCorrectionComplex =
+    ComplexInteraction<TransportVelocityCorrection<Inner<ResolutionType, TruncatedLinear>, Contact<>, Contact<Boundary>>, CommonControlTypes...>;
+
+template <class ParticleScope>
+using MultiPhaseTransportVelocityLimitedCorrectionComplex =
+    BaseMultiPhaseTransportVelocityLimitedCorrectionComplex<SingleResolution, NoKernelCorrection, ParticleScope>;
+
+template <class ParticleScope>
+using MultiPhaseTransportVelocityLimitedCorrectionCorrectedComplex =
+    BaseMultiPhaseTransportVelocityLimitedCorrectionComplex<SingleResolution, LinearGradientCorrection, ParticleScope>;
 } // namespace fluid_dynamics
 } // namespace SPH
 #endif // TRANSPORT_VELOCITY_CORRECTION_H

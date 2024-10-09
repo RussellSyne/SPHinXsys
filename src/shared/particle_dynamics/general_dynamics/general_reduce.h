@@ -31,7 +31,7 @@
 
 #include "base_general_dynamics.h"
 #include <limits>
-
+#include "general_continuum.h"
 namespace SPH
 {
 /**
@@ -217,6 +217,82 @@ class TotalMechanicalEnergy : public TotalKineticEnergy
   public:
     explicit TotalMechanicalEnergy(SPHBody &sph_body, Gravity &gravity);
     virtual ~TotalMechanicalEnergy(){};
+    Real reduce(size_t index_i, Real dt = 0.0);
+};
+
+//added
+class ElasticStrainEnergy
+    : public LocalDynamicsReduce<ReduceSum<Real>>
+{
+  protected:
+    GeneralContinuum &continuum_;
+    Real *Vol_, *p_;
+    Matd *strain_tensor_, *shear_stress_;
+    Real E_;
+    Vecd *pos_;
+
+  public:
+    ElasticStrainEnergy(SPHBody &sph_body);
+    virtual ~ElasticStrainEnergy(){};
+
+    Real reduce(size_t index_i, Real dt = 0.0);
+};
+class ElasticStrainEnergyV2
+    : public LocalDynamicsReduce<ReduceSum<Real>>
+{
+  protected:
+    GeneralContinuum &continuum_;
+    Real *Vol_, *p_;
+    Matd *strain_tensor_, *shear_stress_;
+    Real E_;
+
+  public:
+    ElasticStrainEnergyV2(SPHBody &sph_body);
+    virtual ~ElasticStrainEnergyV2(){};
+
+    Real reduce(size_t index_i, Real dt = 0.0);
+};
+class ElasticStrainEnergyVersion3
+    : public LocalDynamicsReduce<ReduceSum<Real>>
+{
+  protected:
+    GeneralContinuum &continuum_;
+    Real *Vol_, *p_;
+    Matd *strain_tensor_, *shear_stress_;
+    Real E_;
+
+  public:
+    ElasticStrainEnergyVersion3(SPHBody &sph_body);
+    virtual ~ElasticStrainEnergyVersion3(){};
+
+    Real reduce(size_t index_i, Real dt = 0.0);
+};
+
+class LinearMomentum
+    : public LocalDynamicsReduce<ReduceSum<Vecd>>
+{
+  protected:
+    Real *Vol_, *rho_, *mass_;
+    Vecd *vel_, *pos_;
+
+  public:
+    explicit LinearMomentum(SPHBody &sph_body);
+    virtual ~LinearMomentum(){};
+
+    Vecd reduce(size_t index_i, Real dt = 0.0);
+};
+
+class TotalAngularMomentum
+    : public LocalDynamicsReduce<ReduceSum<Real>>
+{
+  protected:
+    Real *Vol_, *rho_, *mass_;
+    Vecd *vel_, *pos_;
+
+  public:
+    explicit TotalAngularMomentum(SPHBody &sph_body);
+    virtual ~TotalAngularMomentum(){};
+
     Real reduce(size_t index_i, Real dt = 0.0);
 };
 
