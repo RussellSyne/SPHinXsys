@@ -47,7 +47,7 @@ class SurfaceTensionStress : public LocalDynamics, public DataDelegateContact
 
   protected:
     Vecd *color_gradient_, *norm_direction_;
-    Matd *surface_tension_stress_;
+    Matd *surface_tension_stress_, *tangential_direction_;
     StdVec<Real> contact_fraction_;
     StdVec<Real *> contact_Vol_;
     Real *surface_tension_coef_;
@@ -87,7 +87,7 @@ class SurfaceStressForce<DataDelegationType>
   protected:
     Real *rho_, *mass_, *Vol_;
     Vecd *color_gradient_, *surface_tension_force_;
-    Matd *surface_tension_stress_;
+    Matd *surface_tension_stress_, *tangential_direction_;
     Real *surface_tension_coef_;
     Vecd *force_by_hourglass_, *force_by_hourglass_contact_;
 };
@@ -115,7 +115,7 @@ class SurfaceStressForce<Contact<>> : public SurfaceStressForce<DataDelegateCont
   protected:
     StdVec<Real *> contact_Vol_;
     StdVec<Vecd *> contact_color_gradient_;
-    StdVec<Matd *> contact_surface_tension_stress_;
+    StdVec<Matd *> contact_surface_tension_stress_, contact_tangential_direction_;
     StdVec<Real> contact_fraction_;
 };
 

@@ -36,11 +36,13 @@ AdvectionTimeStep::
     AdvectionTimeStep(SPHBody &sph_body, Real U_ref, Real advectionCFL)
     : LocalDynamicsReduce<ReduceMax>(sph_body),
       mass_(particles_->getVariableDataByName<Real>("Mass")),
+      surface_tension_coef_(particles_->template getSingularVariableByName<Real>("SurfaceTensionCoef")->ValueAddress()),
       vel_(particles_->getVariableDataByName<Vecd>("Velocity")),
       force_(particles_->getVariableDataByName<Vecd>("Force")),
       force_prior_(particles_->getVariableDataByName<Vecd>("ForcePrior")),
       h_min_(sph_body.sph_adaptation_->MinimumSmoothingLength()),
-      speed_ref_(U_ref), advectionCFL_(advectionCFL) {}
+      speed_ref_(U_ref), advectionCFL_(advectionCFL),
+      rho0_(sph_body_.getBaseMaterial().ReferenceDensity()) {}
 //=================================================================================================//
 Real AdvectionTimeStep::reduce(size_t index_i, Real dt)
 {
@@ -52,7 +54,8 @@ Real AdvectionTimeStep::reduce(size_t index_i, Real dt)
 Real AdvectionTimeStep::outputResult(Real reduced_value)
 {
     Real speed_max = sqrt(reduced_value);
-    return advectionCFL_ * h_min_ / (SMAX(speed_max, speed_ref_) + TinyReal);
+    //return advectionCFL_ * h_min_ / (SMAX(speed_max, speed_ref_) + TinyReal);
+    return advectionCFL_ * h_min_ / (SMAX(speed_max, speed_ref_, sqrt(2*Pi* *surface_tension_coef_/(rho0_*h_min_))) + TinyReal);
 }
 //=================================================================================================//
 AdvectionViscousTimeStep::AdvectionViscousTimeStep(SPHBody &sph_body, Real U_ref, Real advectionCFL)

@@ -6,32 +6,38 @@ using namespace SPH;   // Namespace cite here.
 Real DL = 1.0; /**< Tank length. */
 Real DH = 1.0; /**< Tank height. */
 Real droplet_radius = 0.2;
-Real particle_spacing_ref = droplet_radius / 20.0; /**< Initial reference particle spacing. */
+Real particle_spacing_ref = droplet_radius / 10.0; /**< Initial reference particle spacing. */
 Real BW = particle_spacing_ref * 4;                /**< Extending width for BCs. */
 //----------------------------------------------------------------------
 //	Material parameters.
 //----------------------------------------------------------------------
-// Real rho0_f = 1.0;       /**< Reference density of water. */
-// Real rho0_a = 1.0;       /**< Reference density of air. */
-// Real U_ref = 1.0;        /**< Characteristic velocity. */
-// Real c_f = 10.0 * U_ref; /**< Reference sound speed. */
-// Real mu_f = 5.0e-2;      /**< Water viscosity. */
-// Real mu_a = 5.0e-2;      /**< Air viscosity. */
-// Real surface_tension_coef = 1.0;
-// Real U0 = 10;
-// Real Re_water = rho0_f * U_ref * 2 * droplet_radius / mu_f;
-// Real Re_air = rho0_a * U_ref * 2 * droplet_radius / mu_a;
-
 Real rho0_f = 1.0;       /**< Reference density of water. */
-Real rho0_a = 1.0e-3;       /**< Reference density of air. */
-Real U_ref = 2.0;        /**< Characteristic velocity. */
+Real rho0_a = 1.0;       /**< Reference density of air. */
+Real U_ref = 1.0;        /**< Characteristic velocity. */
 Real c_f = 10.0 * U_ref; /**< Reference sound speed. */
-Real mu_f = 5.0e-2;        /**< Water viscosity. */
-Real mu_a = 5.0e-4;        /**< Air viscosity. */
-Real surface_tension_coef = 1;
-Real U0 = 1.0;
-Real Re_water = rho0_f *U_ref*2*droplet_radius/mu_f;
-Real Re_air = rho0_a *U_ref*2*droplet_radius/mu_a;
+Real mu_f = 5.0e-2;      /**< Water viscosity. */
+Real mu_a = 5.0e-2;      /**< Air viscosity. */
+Real surface_tension_coef = 1.0;
+Real transport_velocity_coef = 0.2;
+Real U0 = 10;
+Real Re_water = rho0_f * U_ref * 2 * droplet_radius / mu_f;
+Real Re_air = rho0_a * U_ref * 2 * droplet_radius / mu_a;
+//
+// // Real rho0_f = 1.0;       /**< Reference density of water. */
+// // Real rho0_a = 1.0e-3;       /**< Reference density of air. */
+// Real rho0_f = 1000.0;       /**< Reference density of water. */
+// Real rho0_a = 1.0;       /**< Reference density of air. */
+// Real U_ref = 2.0;        /**< Characteristic velocity. */
+// Real c_f = 10.0 * U_ref; /**< Reference sound speed. */
+// // Real mu_f = 5.0e-2;        /**< Water viscosity. */
+// // Real mu_a = 5.0e-4;        /**< Air viscosity. */
+// Real mu_f = 5.0e-3;        /**< Water viscosity. */
+// Real mu_a = 5.0e-5;        /**< Air viscosity. */
+// Real surface_tension_coef = 1;
+// Real transport_velocity_coef = 0.2;
+// Real U0 = 0.0;
+// Real Re_water = rho0_f *U_ref*2*droplet_radius/mu_f;
+// Real Re_air = rho0_a *U_ref*2*droplet_radius/mu_a;
 //----------------------------------------------------------------------
 //	Geometric shapes used in this case.
 //----------------------------------------------------------------------

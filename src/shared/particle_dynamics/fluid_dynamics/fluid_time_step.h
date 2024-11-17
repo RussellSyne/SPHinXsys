@@ -66,10 +66,10 @@ class AdvectionTimeStep
     : public LocalDynamicsReduce<ReduceMax>
 {
   protected:
-    Real *mass_;
+    Real *mass_, *surface_tension_coef_;
     Vecd *vel_, *force_, *force_prior_;
     Real h_min_;
-    Real speed_ref_, advectionCFL_;
+    Real speed_ref_, advectionCFL_, rho0_;
 
   public:
     AdvectionTimeStep(SPHBody &sph_body, Real U_ref, Real advectionCFL = 0.25);

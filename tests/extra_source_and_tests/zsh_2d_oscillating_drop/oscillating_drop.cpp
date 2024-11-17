@@ -11,6 +11,10 @@ int main(int ac, char *av[])
     //----------------------------------------------------------------------
     BoundingBox system_domain_bounds(Vec2d(-BW - DL / 2, -BW - DH / 2), Vec2d(BW + DL / 2, BW + DH / 2));
     SPHSystem sph_system(system_domain_bounds, particle_spacing_ref);
+    /** Tag for running particle relaxation for the initially body-fitted distribution */
+    sph_system.setRunParticleRelaxation(false);
+    /** Tag for starting with relaxed body-fitted particles distribution */
+    sph_system.setReloadParticles(true);
     sph_system.handleCommandlineOptions(ac, av)->setIOEnvironment();
     //----------------------------------------------------------------------
     //	Creating bodies with corresponding materials and particles.
@@ -23,9 +27,72 @@ int main(int ac, char *av[])
     air_block.defineMaterial<WeaklyCompressibleFluid>(rho0_a, c_f, mu_a);
     air_block.generateParticles<BaseParticles, Lattice>();
 
+    // FluidBody water_block(sph_system, makeShared<WaterBlock>("WaterBody"));
+    // water_block.defineBodyLevelSetShape();
+    // water_block.defineMaterial<WeaklyCompressibleFluid>(rho0_f, c_f, mu_f);
+    // (!sph_system.RunParticleRelaxation() && sph_system.ReloadParticles())
+    //     ? water_block.generateParticles<BaseParticles, Reload>(water_block.getName())
+    //     : water_block.generateParticles<BaseParticles, Lattice>();
+
+    // FluidBody air_block(sph_system, makeShared<AirBlock>("AirBody"));
+    // air_block.defineBodyLevelSetShape();
+    // air_block.defineMaterial<WeaklyCompressibleFluid>(rho0_a, c_f, mu_a);
+    // (!sph_system.RunParticleRelaxation() && sph_system.ReloadParticles())
+    //     ? air_block.generateParticles<BaseParticles, Reload>(air_block.getName())
+    //     : air_block.generateParticles<BaseParticles, Lattice>();
+
     SolidBody wall_boundary(sph_system, makeShared<WallBoundary>("WallBoundary"));
     wall_boundary.defineMaterial<Solid>();
     wall_boundary.generateParticles<BaseParticles, Lattice>();
+    //----------------------------------------------------------------------
+    //	Run particle relaxation for body-fitted distribution if chosen.
+    //----------------------------------------------------------------------
+    if (sph_system.RunParticleRelaxation())
+    {
+        //----------------------------------------------------------------------
+        //	Define body relation map used for particle relaxation.
+        //----------------------------------------------------------------------
+        InnerRelation water_inner(water_block);
+        InnerRelation air_inner(air_block);
+        //----------------------------------------------------------------------
+        //	Define the methods for particle relaxation.
+        //----------------------------------------------------------------------
+        using namespace relax_dynamics;
+        SimpleDynamics<RandomizeParticlePosition> water_random_particles(water_block);
+        SimpleDynamics<RandomizeParticlePosition> air_random_particles(air_block);
+        RelaxationStepLevelSetCorrectionInner water_relaxation_step(water_inner);
+        RelaxationStepLevelSetCorrectionInner air_relaxation_step(air_inner);
+        //----------------------------------------------------------------------
+        //	Output for particle relaxation.
+        //----------------------------------------------------------------------
+        BodyStatesRecordingToVtp write_state(sph_system);
+        ReloadParticleIO write_particle_reload_files({&water_block, &air_block});
+        //----------------------------------------------------------------------
+        //	Particle relaxation starts here.
+        //----------------------------------------------------------------------
+        water_random_particles.exec(0.25);
+        air_random_particles.exec(0.25);
+        write_state.writeToFile(0);
+        //----------------------------------------------------------------------
+        //	From here iteration for particle relaxation begins.
+        //----------------------------------------------------------------------
+        int ite = 0;
+        int relax_step = 1000;
+        while (ite < relax_step)
+        {
+            water_relaxation_step.exec();
+            air_relaxation_step.exec();
+            ite += 1;
+            if (ite % 100 == 0)
+            {
+                std::cout << std::fixed << std::setprecision(9) << "Relaxation steps N = " << ite << "\n";
+                write_state.writeToFile(ite);
+            }
+        }
+        std::cout << "The physics relaxation process of ball particles finish !" << std::endl;
+        write_particle_reload_files.writeToFile(0);
+        return 0;
+    }
     //----------------------------------------------------------------------
     //	Define body relation map.
     //	The contact map gives the topological connections between the bodies.
@@ -56,14 +123,23 @@ int main(int ac, char *av[])
     Dynamics1Level<fluid_dynamics::MultiPhaseIntegration1stHalfWithWallRiemann> air_pressure_relaxation(air_inner, air_water_contact, air_wall_contact);
     Dynamics1Level<fluid_dynamics::MultiPhaseIntegration2ndHalfWithWallRiemann> air_density_relaxation(air_inner, air_water_contact, air_wall_contact);
 
-    InteractionWithUpdate<fluid_dynamics::BaseDensitySummationComplex<Inner<>, Contact<>, Contact<>>>
-        update_air_density_by_summation(air_inner, air_water_contact, air_wall_contact);
+    // InteractionWithUpdate<fluid_dynamics::DensitySummationComplexFreeSurface>
+    //     update_water_density_by_summation(water_inner, water_wall_contact);
     InteractionWithUpdate<fluid_dynamics::BaseDensitySummationComplex<Inner<>, Contact<>, Contact<>>>
         update_water_density_by_summation(water_inner, water_air_contact, water_wall_contact);
-    InteractionWithUpdate<fluid_dynamics::MultiPhaseTransportVelocityCorrectionComplex<AllParticles>>
-        air_transport_correction(ConstructorArgs(air_inner, 0.2), air_water_contact, air_wall_contact);
-    InteractionWithUpdate<fluid_dynamics::MultiPhaseTransportVelocityCorrectionComplex<AllParticles>>
-        water_transport_correction(ConstructorArgs(water_inner, 0.2), water_air_contact, water_wall_contact);
+    InteractionWithUpdate<fluid_dynamics::BaseDensitySummationComplex<Inner<>, Contact<>, Contact<>>>
+        update_air_density_by_summation(air_inner, air_water_contact, air_wall_contact);
+
+    //
+    // InteractionWithUpdate<fluid_dynamics::MultiPhaseTransportVelocityCorrectionComplex<AllParticles>>
+    //     air_transport_correction(ConstructorArgs(air_inner, transport_velocity_coef), air_water_contact, air_wall_contact);
+    // InteractionWithUpdate<fluid_dynamics::MultiPhaseTransportVelocityCorrectionComplex<AllParticles>>
+    //     water_transport_correction(ConstructorArgs(water_inner, transport_velocity_coef), water_air_contact, water_wall_contact);
+    //
+    InteractionWithUpdate<fluid_dynamics::MultiPhaseTransportVelocityLimitedCorrectionComplex<AllParticles>>
+        air_transport_correction(ConstructorArgs(air_inner, transport_velocity_coef), air_water_contact, air_wall_contact);
+    InteractionWithUpdate<fluid_dynamics::MultiPhaseTransportVelocityLimitedCorrectionComplex<AllParticles>>
+        water_transport_correction(ConstructorArgs(water_inner, transport_velocity_coef), water_air_contact, water_wall_contact);
 
     InteractionWithUpdate<fluid_dynamics::MultiPhaseViscousForceWithWall> water_viscous_force(water_inner, water_air_contact, water_wall_contact);
     InteractionWithUpdate<fluid_dynamics::MultiPhaseViscousForceWithWall> air_viscous_force(air_inner, air_water_contact, air_wall_contact);
@@ -77,8 +153,8 @@ int main(int ac, char *av[])
     ReduceDynamics<fluid_dynamics::AdvectionViscousTimeStep> get_air_advection_time_step_size(air_block, U_ref);
     // ReduceDynamics<fluid_dynamics::AdvectionTimeStep> get_water_advection_time_step_size(water_block, U_ref);
     // ReduceDynamics<fluid_dynamics::AdvectionTimeStep> get_air_advection_time_step_size(air_block, U_ref);
-    ReduceDynamics<fluid_dynamics::AcousticTimeStep> get_water_time_step_size(water_block, 0.2);
-    ReduceDynamics<fluid_dynamics::AcousticTimeStep> get_air_time_step_size(air_block, 0.2);
+    ReduceDynamics<fluid_dynamics::AcousticTimeStep> get_water_time_step_size(water_block);
+    ReduceDynamics<fluid_dynamics::AcousticTimeStep> get_air_time_step_size(air_block);
     //
     SimpleDynamics<InitialVelocity> initial_condition(water_block);
     SimpleDynamics<SetPositionCenterZero> set_position_center_zero(water_block);
@@ -174,7 +250,7 @@ int main(int ac, char *av[])
 
             Real Dt_f = get_water_advection_time_step_size.exec();
             Real Dt_a = get_air_advection_time_step_size.exec();
-            Real Dt = 0.2 * SMIN(Dt_f, Dt_a);
+            Real Dt = SMIN(Dt_f, Dt_a);
 
             update_air_density_by_summation.exec();
             update_water_density_by_summation.exec();
@@ -281,8 +357,8 @@ int main(int ac, char *av[])
     //         /** Force Prior due to viscous force and gravity. */
     //         time_instance = TickCount::now();
 
-    //         // update_air_density_by_summation.exec();
-    //         // update_water_density_by_summation.exec();
+    //         update_air_density_by_summation.exec();
+    //         update_water_density_by_summation.exec();
     //         air_transport_correction.exec();
     //         water_transport_correction.exec();
 
@@ -350,6 +426,8 @@ int main(int ac, char *av[])
     //     write_position_upper_bond.writeToFile(number_of_iterations);
     //     write_water_delta_function.writeToFile(number_of_iterations);
     //     write_air_delta_function.writeToFile(number_of_iterations);
+    //     write_water_hourglass_force.writeToFile(number_of_iterations);
+    //     write_air_hourglass_force.writeToFile(number_of_iterations);
     //     TickCount t2 = TickCount::now();
     //     body_states_recording.writeToFile();
     //     TickCount t3 = TickCount::now();

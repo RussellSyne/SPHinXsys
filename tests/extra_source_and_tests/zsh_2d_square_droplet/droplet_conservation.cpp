@@ -18,7 +18,7 @@ Real DL = 2.0;                         /**< Tank length. */
 Real DH = 2.0;                         /**< Tank height. */
 Real LL = 1.0;                         /**< Liquid column length. */
 Real LH = 1.0;                         /**< Liquid column height. */
-Real particle_spacing_ref = LL / 40.0; /**< Initial reference particle spacing. */
+Real particle_spacing_ref = LL / 20.0; /**< Initial reference particle spacing. */
 Real BW = particle_spacing_ref * 4;    /**< Extending width for BCs. */
 //----------------------------------------------------------------------
 //	Material parameters.
@@ -30,7 +30,8 @@ Real c_f = 10.0 * U_ref; /**< Reference sound speed. */
 Real mu_f = 0.2;         /**< Water viscosity. */
 Real mu_a = 0.002;       /**< Air viscosity. */
 Real surface_tension_coef = 1.0;
-
+Real transport_velocity_coef = 0.2;
+//
 // Real rho0_f = 1.0; /**< Reference density of water. */
 // Real rho0_a = 1.0; /**< Reference density of air. */
 // // Pressure increases when increasing the U_ref
@@ -39,6 +40,7 @@ Real surface_tension_coef = 1.0;
 // Real mu_f = 0.2;         /**< Water viscosity. */
 // Real mu_a = 0.2;         /**< Air viscosity. */
 // Real surface_tension_coef = 1.0;
+// Real transport_velocity_coef = 0.2;
 //----------------------------------------------------------------------
 //	Geometric shapes used in this case.
 //----------------------------------------------------------------------
@@ -190,6 +192,7 @@ class ForceByHourglassContact : public LocalDynamicsReduce<ReduceSum<Real>>
   protected:
     Vecd *force_by_hourglass_contact_;
 };
+using MultiPhaseLinearGradientCorrectionMatrixComplex = ComplexInteraction<LinearGradientCorrectionMatrix<Inner<>, Contact<>, Contact<>>>;
 //-
 //----------------------------------------------------------------------
 //	Main program starts here.
@@ -238,8 +241,8 @@ int main(int ac, char *av[])
     //	Note that there may be data dependence on the sequence of constructions.
     //----------------------------------------------------------------------
     SimpleDynamics<NormalDirectionFromBodyShape> wall_boundary_normal_direction(wall_boundary);
-    InteractionWithUpdate<LinearGradientCorrectionMatrixInner> corrected_configuration_water(water_inner);
-    InteractionWithUpdate<LinearGradientCorrectionMatrixInner> corrected_configuration_air(air_inner);
+    InteractionWithUpdate<MultiPhaseLinearGradientCorrectionMatrixComplex> corrected_configuration_water(water_inner, water_air_contact, water_wall_contact);
+    InteractionWithUpdate<MultiPhaseLinearGradientCorrectionMatrixComplex> corrected_configuration_air(air_inner, air_water_contact, air_wall_contact);
     Dynamics1Level<fluid_dynamics::MultiPhaseIntegration1stHalfWithWallRiemann> water_pressure_relaxation(water_inner, water_air_contact, water_wall_contact);
     Dynamics1Level<fluid_dynamics::MultiPhaseIntegration2ndHalfWithWallRiemann> water_density_relaxation(water_inner, water_air_contact, water_wall_contact);
     Dynamics1Level<fluid_dynamics::MultiPhaseIntegration1stHalfWithWallRiemann> air_pressure_relaxation(air_inner, air_water_contact, air_wall_contact);
@@ -249,11 +252,15 @@ int main(int ac, char *av[])
         update_air_density_by_summation(air_inner, air_water_contact, air_wall_contact);
     InteractionWithUpdate<fluid_dynamics::BaseDensitySummationComplex<Inner<>, Contact<>, Contact<>>>
         update_water_density_by_summation(water_inner, water_air_contact, water_wall_contact);
-    // The pressure increases when decreasing the coefficient in the transport velocity
-    InteractionWithUpdate<fluid_dynamics::MultiPhaseTransportVelocityCorrectionComplex<AllParticles>>
-        air_transport_correction(ConstructorArgs(air_inner, 0.02), air_water_contact, air_wall_contact);
-    InteractionWithUpdate<fluid_dynamics::MultiPhaseTransportVelocityCorrectionComplex<AllParticles>>
-        water_transport_correction(ConstructorArgs(water_inner, 0.02), water_air_contact, water_wall_contact);
+    //
+    // InteractionWithUpdate<fluid_dynamics::MultiPhaseTransportVelocityCorrectionComplex<AllParticles>>
+    //     air_transport_correction(ConstructorArgs(air_inner, 0.02), air_water_contact, air_wall_contact);
+    // InteractionWithUpdate<fluid_dynamics::MultiPhaseTransportVelocityCorrectionComplex<AllParticles>>
+    //     water_transport_correction(ConstructorArgs(water_inner, 0.02), water_air_contact, water_wall_contact);
+    InteractionWithUpdate<fluid_dynamics::MultiPhaseTransportVelocityLimitedCorrectionComplex<AllParticles>>
+        air_transport_correction(ConstructorArgs(air_inner, transport_velocity_coef), air_water_contact, air_wall_contact);
+    InteractionWithUpdate<fluid_dynamics::MultiPhaseTransportVelocityLimitedCorrectionComplex<AllParticles>>
+        water_transport_correction(ConstructorArgs(water_inner, transport_velocity_coef), water_air_contact, water_wall_contact);
 
     InteractionWithUpdate<fluid_dynamics::MultiPhaseViscousForceWithWall> water_viscous_force(water_inner, water_air_contact, water_wall_contact);
     InteractionWithUpdate<fluid_dynamics::MultiPhaseViscousForceWithWall> air_viscous_force(air_inner, air_water_contact, air_wall_contact);
@@ -301,13 +308,15 @@ int main(int ac, char *av[])
     sph_system.initializeSystemCellLinkedLists();
     sph_system.initializeSystemConfigurations();
     wall_boundary_normal_direction.exec();
+    corrected_configuration_water.exec();
+    corrected_configuration_air.exec();
     //----------------------------------------------------------------------
     //	Setup for time-stepping control
     //----------------------------------------------------------------------
     Real &physical_time = *sph_system.getSystemVariableDataByName<Real>("PhysicalTime");
     size_t number_of_iterations = 0;
     int screen_output_interval = 100;
-    Real end_time = 5.0;
+    Real end_time = 0.5;
     Real output_interval = end_time / 50; /**< Time stamps for output of body states. */
     Real dt = 0.0;                        /**< Default acoustic time step sizes. */
     /** statistics for computing CPU time. */
@@ -355,13 +364,13 @@ int main(int ac, char *av[])
             air_transport_correction.exec();
             water_transport_correction.exec();
 
-            air_viscous_force.exec();
-            water_viscous_force.exec();
+            // air_viscous_force.exec();
+            // water_viscous_force.exec();
 
-            water_surface_tension_stress.exec();
-            air_surface_tension_stress.exec();
-            water_surface_tension_force.exec();
-            air_surface_tension_force.exec();
+            // water_surface_tension_stress.exec();
+            // air_surface_tension_stress.exec();
+            // water_surface_tension_force.exec();
+            // air_surface_tension_force.exec();
 
             interval_computing_time_step += TickCount::now() - time_instance;
 
@@ -370,13 +379,13 @@ int main(int ac, char *av[])
             Real relaxation_time = 0.0;
             while (relaxation_time < Dt)
             {
-                // air_viscous_force.exec();
-                // water_viscous_force.exec();
+                air_viscous_force.exec();
+                water_viscous_force.exec();
 
-                // water_surface_tension_stress.exec();
-                // air_surface_tension_stress.exec();
-                // water_surface_tension_force.exec();
-                // air_surface_tension_force.exec();
+                water_surface_tension_stress.exec();
+                air_surface_tension_stress.exec();
+                water_surface_tension_force.exec();
+                air_surface_tension_force.exec();
 
                 Real dt_f = get_water_time_step_size.exec();
                 Real dt_a = get_air_time_step_size.exec();
@@ -420,6 +429,9 @@ int main(int ac, char *av[])
             air_block.updateCellLinkedList();
             air_water_complex.updateConfiguration();
             air_wall_contact.updateConfiguration();
+
+            corrected_configuration_water.exec();
+            corrected_configuration_air.exec();
 
             interval_updating_configuration += TickCount::now() - time_instance;
         }
